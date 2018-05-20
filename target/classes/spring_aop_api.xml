@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans.xsd">
+         
+    <!-- Before advice
+            -一个简单的通知类型
+            -只是进方法之前被调用，不需要MethodInvocation对象
+            -前置通知可以在连接点执行之前插入自定义行为，但不能改变返回值
+     -->
+    <bean id="customBeforeAdvice" class="org.spring.aop.api.CustomBeforeAdvice"/>
+     
+    <!-- Throws advice
+            -如果连接点抛出异常，throws advice在连接点返回后被调用
+            -如果throws-advice的方法抛出异常，那么它将覆盖原有异常
+            -接口org.springframework.aop.ThrowsAdvice不包含任何方法，仅仅是一个声明，实现类需要实现类似下面的方法
+            -void afterThrowing([Method, args, target], ThrowableSubclass)
+     -->
+    <bean id="customThrowsAdvice" class="org.spring.aop.api.CustomThrowsAdvice"/>
+     
+    <!-- After Returning advice
+            -后置通知必须实现org.springframework.aop.AfterReturningAdvice几口
+            -可以访问返回值(但不能进行修改)、被调用的方法、方法的参数和目标
+            -如果抛出异常，将会抛出拦截器链，替代返回值
+     -->
+    <bean id="customAfterReturnAdvice" class="org.spring.aop.api.CustomAfterReturnAdvice"/>
+     
+    <!-- Interception around advice
+            -Spring的切入点模型使得切入点可以独立与advice重用，以针对不同的advice可以使用相同的切入点
+     -->
+    <bean id="customMethodInterceptor" class="org.spring.aop.api.CustomMethodInterceptor"/>
+      
+    <!-- Introduction advice
+            -Spring把引入通知作为一种特殊的拦截通知
+            -需要IntroductionAdvisor和IntroductionInterceptor
+            -仅适用于类，不能和任何切入点一起使用
+            -实例：如果调用lock()方法，希望所有的setter方法抛出LockedException异常。
+            -代码：Lockalbe.java   LockMixin.java  LockMixinAdvisor.java
+    -->
+    <!-- Advisor API
+            -Advisor是仅包含一个切入点表达式关联的单个通知的方面
+            -除了introductions，advisor可以用于任何通知
+            -org.springframework.aop.support.DefaultIntroductionAdvisor是最常用的advisor类，
+                它可以与MethodInterceptor，BeforeAdvice或者ThrowsAdvice一起使用
+            -它可以混合在Spring同一个AOP代理的advisor和advice
+     -->
+     
+    <!-- 当使用方式三时，屏蔽该bean的定义 -->
+    <!-- <bean id="bizLogicImplTarget" class="org.spring.aop.api.BizLogicImpl"/> -->
+     
+    <!-- ###########################方式一：使用pointcutBean开始############################# -->
+    <!-- 根据方法名匹配切入点pointcut -->
+    <!-- <bean id="pointcutBean" class="org.springframework.aop.support.NameMatchMethodPointcut">
+        <property name="mappedNames">成员变量，匹配的方法名集合
+            <list>
+                <value>sa*</value>
+            </list>
+        </property>
+    </bean>
+     
+    <bean id="defaultAdvisor" class="org.springframework.aop.support.DefaultPointcutAdvisor">
+        <property name="advice" ref="customBeforeAdvice"/>接入点通知，若非接入点，则该通知不生效
+        <property name="pointcut" ref="pointcutBean"/>接入点
+    </bean> -->
+     
+    <!-- ProxyFactoryBean
+            -创建Spring AOP代理的基本方法是使用org.springframework.aop.framework.ProxyFactoryBean
+            -这可以完全控制切入点和通知(advice)以及它们的顺序
+            -ProxyFactoryBean实现里getObject()方法创建一个AOP代理包装一个目标对象
+            -使用ProxyFactoryBean或者其它IOC相关类来创建AOP代理的最重要的好处是通知和切入点也可以由IOC来管理
+            -被代理类没有实现任何接口，使用CGLIB代理，否则JDK代理
+            -通过设置proxyTargetClass为true，可强制使用CGLIB
+            -如果目标类实现了一个(或者多个)接口，那么创建代理的类型将依赖ProxyFactoryBean的配置
+            -如果ProxyFactoryBean的proxyInterfaces属性设置为一个或多个全限定接口名，基于JDK的代理将被创建
+            -如果ProxyFactoryBean的proxyInterfaces属性没有被设置，但是目标类实现了一个(或者更多)接口，那么proxyInterfaces
+                将自动检测到这个目标类已经实现了至少一个接口，创建一个基于JDK的代理
+     -->
+    <!-- <bean id="bizLogicImpl" class="org.springframework.aop.framework.ProxyFactoryBean">
+        <property name="target">为该类创建代理，由ProxyFactoryBean自己去判断是否实现了接口
+            <ref bean="bizLogicImplTarget"/>
+        </property>
+        <property name="interceptorNames">执行该代理的时候执行的interceptor
+            <list>
+                <value>defaultAdvisor</value>
+                <value>customAfterReturnAdvice</value>
+                <value>customMethodInterceptor</value>
+                <value>customThrowsAdvice</value>
+            </list>
+        </property>
+    </bean> -->
+    <!-- ###############################方式一结束######################################### -->
+    <!-- ############################方式二：使用pointcutBean开始############################ -->
+    <!-- <bean id="bizLogicImpl" class="org.springframework.aop.framework.ProxyFactoryBean">
+        <property name="proxyInterfaces">直接指定接口
+            <value>org.spring.aop.api.BizLogic</value>
+        </property>
+        <property name="target">为该类创建代理,因为直接指定了接口，所以肯定是使用JDK代理
+            <ref bean="bizLogicImplTarget"/>
+        </property>
+        <property name="interceptorNames">执行该代理的时候执行的interceptor
+            <list>
+                <value>customBeforeAdvice</value>
+                <value>customAfterReturnAdvice</value>
+                <value>customMethodInterceptor</value>
+                <value>customThrowsAdvice</value>
+            </list>
+        </property>
+    </bean> -->
+    <!-- ###############################方式二结束######################################### -->
+    <!-- ##############################方式三：使用匿名内部Bean############################### -->
+    <bean id="bizLogicImpl" class="org.springframework.aop.framework.ProxyFactoryBean">
+        <property name="proxyInterfaces"><!-- 直接指定接口 -->
+            <value>org.spring.aop.api.BizLogic</value>
+        </property>
+        <property name="target"><!-- 上面可以直接使用bean id获取bean对象，此时该bean对象没有被代理，配置的advice不会被执行 -->
+            <bean class="org.spring.aop.api.impl.BizLogicImpl"/>
+        </property>
+        <property name="interceptorNames"><!-- 执行该代理的时候执行的interceptor -->
+            <list>
+                <value>customBeforeAdvice</value>
+                <value>customAfterReturnAdvice</value>
+                <value>customMethodInterceptor</value>
+                <value>customThrowsAdvice</value>
+            </list>
+            <!-- 使用global advisors
+                    -用*做通配，匹配所有拦截器加入通知链
+                  此处只会执行customMethodInterceptor，因为只有该advice实现了Interceptor接口
+             -->
+             <!-- <list>
+                <value>custom*</value>
+             </list> -->
+        </property>
+    </bean>
+    <!-- ###############################方式三结束######################################### -->
+    <!-- ##############################方式四：简化的proxy定义############################### -->
+    <!-- 简化的proxy定义
+            -使用父子bean定义以及内部bean定义，可能会带来更清洁和更简洁的代理定义
+     -->
+    <!-- <bean id="baseProxyBean" class="org.springframework.aop.framework.ProxyFactoryBean"
+        lazy-init="true" abstract="true"/>
+         
+    <bean id="bizLogicImpl" parent="baseProxyBean">
+        <property name="proxyInterfaces">直接指定接口
+            <value>org.spring.aop.api.BizLogic</value>
+        </property>
+        <property name="target">上面可以直接使用bean id获取bean对象，此时该bean对象没有被代理，配置的advice不会被执行
+            <bean class="org.spring.aop.api.BizLogicImpl"/>
+        </property>
+        <property name="interceptorNames">执行该代理的时候执行的interceptor
+            <list>
+                <value>customBeforeAdvice</value>
+                <value>customAfterReturnAdvice</value>
+                <value>customMethodInterceptor</value>
+                <value>customThrowsAdvice</value>
+            </list>
+        </property>
+    </bean> -->
+    <!-- ###############################方式四结束######################################### -->
+     
+</beans>
